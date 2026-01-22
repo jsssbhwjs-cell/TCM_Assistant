@@ -8,18 +8,17 @@ st.set_page_config(page_title="针推临床大脑", page_icon="🩺", layout="ce
 with st.sidebar:
     st.header("⚙️ 核心设置")
     
-    # --- 修改点：新增“硅基流动”选项 ---
+    # --- 选择服务商 ---
     provider = st.radio(
         "第一步：选择你的服务商",
         ("硅基流动 (SiliconFlow)", "DeepSeek", "OpenAI")
     )
     
-    # --- 根据选择自动配置地址和模型 ---
+    # --- 自动配置逻辑 ---
     if "硅基流动" in provider:
-        st.info("💡 已适配：GLM-4.7 (Pro/zai-org/GLM-4.7)")
+        st.info("💡 已适配：GLM-4.7")
         base_url = "https://api.siliconflow.cn/v1"
-        # 这里填你 curl 里用的模型名
-        default_model = "Pro/zai-org/GLM-4.7" 
+        default_model = "Pro/zai-org/GLM-4.7"
     elif "DeepSeek" in provider:
         st.info("💡 提示：DeepSeek 官方源")
         base_url = "https://api.deepseek.com"
@@ -29,11 +28,23 @@ with st.sidebar:
         base_url = None
         default_model = "gpt-4o"
         
-    # 允许你手动改模型名（万一你想换硅基里的其他模型）
-    model_name = st.text_input("当前模型 (可修改)", value=default_model)
+    model_name = st.text_input("当前模型", value=default_model)
+    
+    # --- 关键修改：优先从 Secrets 读取 Key ---
+    # 检查是否在后台配置了 SILICON_API_KEY
+    if "SILICON_API_KEY" in st.secrets and "硅基流动" in provider:
+        # 如果后台有 Key，直接读取，不显示在界面上，保护隐私
+        auto_key = st.secrets["SILICON_API_KEY"]
+        st.success("✅ 已自动加载云端 Key")
+        api_key = auto_key # 赋值
         
-    # --- 输入 Key ---
-    api_key = st.text_input("第二步：输入 API Key", type="password")
+        # 即使自动加载，也留个框防止你想临时换号（显示为空或占位符）
+        user_input_key = st.text_input("第二步：API Key (已自动填入)", type="password", placeholder="使用默认 Key...")
+        if user_input_key:
+            api_key = user_input_key
+    else:
+        # 如果没配置 Secrets，就手动输入
+        api_key = st.text_input("第二步：输入 API Key", type="password")
     
     st.divider()
     
@@ -80,17 +91,15 @@ for msg in st.session_state.messages:
 
 if prompt := st.chat_input("请输入病种 (如: 腰椎小关节紊乱)..."):
     if not api_key:
-        st.toast("⚠️ 请先在侧边栏输入 API Key！", icon="❌")
+        st.toast("⚠️ 未检测到 API Key，请检查设置！", icon="❌")
     else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # 去除空格
         clean_key = api_key.strip()
 
         try:
-            # 初始化 Client
             if base_url:
                 client = OpenAI(api_key=clean_key, base_url=base_url)
             else:
@@ -98,7 +107,7 @@ if prompt := st.chat_input("请输入病种 (如: 腰椎小关节紊乱)..."):
 
             with st.chat_message("assistant"):
                 stream = client.chat.completions.create(
-                    model=model_name, # 这里会用你上面设置的 GLM-4.7
+                    model=model_name,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
