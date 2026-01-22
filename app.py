@@ -49,7 +49,7 @@ with st.sidebar:
     st.header("📚 场景模式")
     mode = st.radio(
         "第三步：选择当前场景",
-        ("🏥 门诊：深度临床分析", "🦴 科研：脊柱生物力学", "🤚 专科：吴氏大背晃腰法")
+        ("🏥 楠哥住院部学习AI", "🦴 科研：脊柱生物力学", "🤚 专科：吴氏大背晃腰法")
     )
 
     st.divider()
@@ -160,3 +160,4 @@ if prompt := st.chat_input("请输入病种 (如: 肱骨外上髁炎)..."):
         except Exception as e:
             st.error(f"❌ 通信错误：{e}")
             st.caption("提示：如果报错 404，可能是 DeepSeek-V3.2 这个模型名写错了，请检查硅基流动官网确认准确 ID。")
+
