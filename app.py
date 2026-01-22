@@ -2,28 +2,35 @@ import streamlit as st
 from openai import OpenAI
 
 # ================= 1. 页面基础设置 =================
-# layout="centered" 是手机浏览的最佳模式
 st.set_page_config(page_title="针推临床大脑", page_icon="🩺", layout="centered")
 
 # ================= 2. 侧边栏：配置区 =================
 with st.sidebar:
     st.header("⚙️ 核心设置")
     
-    # --- 新增：选择你的 AI 服务商 ---
+    # --- 修改点：新增“硅基流动”选项 ---
     provider = st.radio(
-        "第一步：选择你的模型服务商",
-        ("DeepSeek (推荐/便宜)", "OpenAI (ChatGPT)")
+        "第一步：选择你的服务商",
+        ("硅基流动 (SiliconFlow)", "DeepSeek", "OpenAI")
     )
     
-    # 根据选择，给出不同的提示
-    if "DeepSeek" in provider:
-        st.info("💡 提示：适合中文医学分析，DeepSeek Key 以 sk- 开头。")
+    # --- 根据选择自动配置地址和模型 ---
+    if "硅基流动" in provider:
+        st.info("💡 已适配：GLM-4.7 (Pro/zai-org/GLM-4.7)")
+        base_url = "https://api.siliconflow.cn/v1"
+        # 这里填你 curl 里用的模型名
+        default_model = "Pro/zai-org/GLM-4.7" 
+    elif "DeepSeek" in provider:
+        st.info("💡 提示：DeepSeek 官方源")
         base_url = "https://api.deepseek.com"
-        model_name = "deepseek-chat"
+        default_model = "deepseek-chat"
     else:
-        st.info("💡 提示：适合通用逻辑，OpenAI Key 通常以 sk-proj- 开头。")
-        base_url = None  # OpenAI 使用默认地址
-        model_name = "gpt-4o" # 或者 gpt-3.5-turbo
+        st.info("💡 提示：OpenAI 官方源")
+        base_url = None
+        default_model = "gpt-4o"
+        
+    # 允许你手动改模型名（万一你想换硅基里的其他模型）
+    model_name = st.text_input("当前模型 (可修改)", value=default_model)
         
     # --- 输入 Key ---
     api_key = st.text_input("第二步：输入 API Key", type="password")
@@ -36,8 +43,7 @@ with st.sidebar:
         ("🏥 门诊：病种速查", "🦴 科研：脊柱生物力学", "🤚 专科：吴氏大背晃腰法")
     )
 
-# ================= 3. 定义不同模式的“人设” =================
-# 这里保持原样，定义三个场景的 System Prompt
+# ================= 3. 定义“人设” (System Prompt) =================
 if "门诊" in mode:
     system_prompt = """
     你是一名三甲医院针灸推拿科的主治医师。用户输入病症后，请务必严格按照以下 markdown 格式输出，条理清晰：
@@ -64,7 +70,7 @@ else:
     """
     st.header("🤚 吴氏大背晃腰法专项")
 
-# ================= 4. 聊天界面逻辑 =================
+# ================= 4. 聊天交互逻辑 =================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -80,19 +86,19 @@ if prompt := st.chat_input("请输入病种 (如: 腰椎小关节紊乱)..."):
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # --- 关键修改：去除两端的空格，防止复制错误 ---
+        # 去除空格
         clean_key = api_key.strip()
 
         try:
-            # 动态初始化 Client
+            # 初始化 Client
             if base_url:
                 client = OpenAI(api_key=clean_key, base_url=base_url)
             else:
-                client = OpenAI(api_key=clean_key) # OpenAI 默认
+                client = OpenAI(api_key=clean_key)
 
             with st.chat_message("assistant"):
                 stream = client.chat.completions.create(
-                    model=model_name,
+                    model=model_name, # 这里会用你上面设置的 GLM-4.7
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
@@ -104,5 +110,4 @@ if prompt := st.chat_input("请输入病种 (如: 腰椎小关节紊乱)..."):
             st.session_state.messages.append({"role": "assistant", "content": response})
 
         except Exception as e:
-            st.error(f"❌ 发生错误：{e}")
-            st.caption("请检查：1. Key是否选对了服务商？ 2. 余额是否充足？")
+            st.error(f"❌ 通信错误：{e}")
