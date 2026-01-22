@@ -4,8 +4,8 @@ from openai import OpenAI
 # ================= 配置区 =================
 # 这里为了方便，我们做了一个输入框让你填 Key，这样你不用改代码
 # 以后熟悉了可以把 Key 放在环境变量里
-st.set_page_config(page_title="针推临床大脑", page_icon="🩺", layout="mobile")
-
+# 把 layout="mobile" 改成 layout="centered" 或者直接删掉 layout 参数
+st.set_page_config(page_title="针推临床大脑", page_icon="🩺", layout="centered")
 # ================= 侧边栏：设置与模式 =================
 with st.sidebar:
     st.header("⚙️ 设置")
@@ -85,4 +85,5 @@ if prompt := st.chat_input("请输入病种或临床问题..."):
             response = st.write_stream(stream)
         
         # 保存回答
+
         st.session_state.messages.append({"role": "assistant", "content": response})
