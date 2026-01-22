@@ -2,7 +2,7 @@ import streamlit as st
 from openai import OpenAI
 
 # ================= 1. 页面基础设置 =================
-st.set_page_config(page_title="针推临床大脑", page_icon="🩺", layout="centered")
+st.set_page_config(page_title="楠哥的AI助手", page_icon="🩺", layout="centered")
 
 # ================= 2. 侧边栏：配置区 =================
 with st.sidebar:
@@ -14,11 +14,10 @@ with st.sidebar:
         ("硅基流动 (SiliconFlow)", "DeepSeek", "OpenAI")
     )
     
-    # --- 自动配置逻辑 (已修改默认值) ---
+    # --- 自动配置逻辑 ---
     if "硅基流动" in provider:
         st.info("💡 已适配：DeepSeek-V3.2")
         base_url = "https://api.siliconflow.cn/v1"
-        # --- 这里改成了你要求的 V3.2 ---
         default_model = "deepseek-ai/DeepSeek-V3.2" 
     elif "DeepSeek" in provider:
         st.info("💡 提示：DeepSeek 官方源")
@@ -29,15 +28,14 @@ with st.sidebar:
         base_url = None
         default_model = "gpt-4o"
         
-    # 虽然默认是 V3.2，但你依然可以在手机上随时改
+    # 模型名称可修改
     model_name = st.text_input("当前模型", value=default_model)
     
-    # --- Key 管理 (优先读取 Secrets) ---
+    # --- Key 管理 ---
     if "SILICON_API_KEY" in st.secrets and "硅基流动" in provider:
         auto_key = st.secrets["SILICON_API_KEY"]
         st.success("✅ 已自动加载云端 Key")
         api_key = auto_key
-        # 允许临时覆盖
         user_input_key = st.text_input("API Key (已自动填入)", type="password", placeholder="使用默认 Key...")
         if user_input_key:
             api_key = user_input_key
@@ -46,6 +44,7 @@ with st.sidebar:
     
     st.divider()
     
+    # --- 修改点 1：侧边栏按钮名字改了 ---
     st.header("📚 场景模式")
     mode = st.radio(
         "第三步：选择当前场景",
@@ -54,13 +53,15 @@ with st.sidebar:
 
     st.divider()
 
-    # --- 清空对话按钮 ---
+    # --- 清空按钮 ---
     if st.button("🗑️ 清空屏幕记录", type="primary"):
         st.session_state.messages = []
         st.rerun()
 
 # ================= 3. 定义“人设” (System Prompt) =================
-if "门诊" in mode:
+
+# --- 修改点 2：这里的判断条件改成识别“楠哥” ---
+if "楠哥" in mode:
     system_prompt = """
     你是一名三甲医院针灸推拿科的副主任医师，拥有极丰富的临床经验。
     用户输入病种后，请务必严格按照以下 9 点结构输出，**必须使用 Markdown 格式**，重点内容加粗：
@@ -98,7 +99,8 @@ if "门诊" in mode:
     ### 9. 🌟 临床特效经验 (最有疗效)
     * (该病最有效的“一招鲜”、经验穴、或特定的组合疗法)
     """
-    st.header("🏥 门诊：深度临床分析")
+    # 页面标题也对应修改
+    st.header("🏥 楠哥住院部学习AI")
 
 elif "脊柱" in mode:
     system_prompt = """
@@ -117,17 +119,15 @@ else:
     """
     st.header("🤚 吴氏大背晃腰法专项")
 
-# ================= 4. 聊天交互逻辑 (单轮模式) =================
+# ================= 4. 聊天交互逻辑 =================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 显示屏幕上的历史记录
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 处理用户输入
-if prompt := st.chat_input("请输入病种 (如: 肱骨外上髁炎)..."):
+if prompt := st.chat_input("请输入病种 (如: 膝骨关节炎)..."):
     if not api_key:
         st.toast("⚠️ 未检测到 API Key，请检查设置！", icon="❌")
     else:
@@ -144,9 +144,8 @@ if prompt := st.chat_input("请输入病种 (如: 肱骨外上髁炎)..."):
                 client = OpenAI(api_key=clean_key)
 
             with st.chat_message("assistant"):
-                # 只发送 System Prompt 和当前问题，极度省流
                 stream = client.chat.completions.create(
-                    model=model_name, # 这里会调用你设置的 DeepSeek-V3.2
+                    model=model_name,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
@@ -159,5 +158,3 @@ if prompt := st.chat_input("请输入病种 (如: 肱骨外上髁炎)..."):
 
         except Exception as e:
             st.error(f"❌ 通信错误：{e}")
-            st.caption("提示：如果报错 404，可能是 DeepSeek-V3.2 这个模型名写错了，请检查硅基流动官网确认准确 ID。")
-
